@@ -1,8 +1,15 @@
+# Generated/reproducible artifacts (run scripts to recreate)
+data/
 output/
 model/*.pkl
-data/
-*.zip
+
+# Python
 __pycache__/
-.DS_Store
 *.pyc
 *.egg-info/
+
+# macOS
+.DS_Store
+
+# Archive
+*.zip

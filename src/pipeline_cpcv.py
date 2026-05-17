@@ -19,6 +19,12 @@ FEATS = [
     'ret_1','ret_2','ret_4','ret_8','ret_16','ret_24','ret_32','ret_48','ret_64','ret_96','ret_128',
     'abs_ret_1','abs_ret_2','abs_ret_4','abs_ret_8','abs_ret_16','abs_ret_24','abs_ret_32','abs_ret_48','abs_ret_64','abs_ret_96','abs_ret_128',
     'ret_vol_corr_16','ret_vol_corr_32','ret_vol_corr_64','ret_vol_corr_96',
+    # === New features v2 ===
+    'hl_range_16','hl_range_48','hl_range_96',
+    'close_pos_16','close_pos_48','close_pos_96',
+    'buy_frac_16','buy_frac_48','buy_frac_96',
+    'vol_skew_48','vol_skew_96',
+    'vol_ratio_16_96',
 ]
 MB = 4
 RF_N_EST = 40
@@ -27,8 +33,8 @@ RF_LEAF = 50
 
 # Per-coin optimal thresholds (optimized via CPCV OOS signals)
 TH_MAP = {
-    'BTCUSDT': 0.11, 'ETHUSDT': 0.11, 'SOLUSDT': 0.12, 'BNBUSDT': 0.10,
-    'ADAUSDT': 0.11, 'XRPUSDT': 0.10, 'DOGEUSDT': 0.17, 'DOTUSDT': 0.11, 'AVAXUSDT': 0.06,
+    'BTCUSDT': 0.12, 'ETHUSDT': 0.11, 'SOLUSDT': 0.13, 'BNBUSDT': 0.15,
+    'ADAUSDT': 0.11, 'XRPUSDT': 0.12, 'DOGEUSDT': 0.17, 'DOTUSDT': 0.14, 'AVAXUSDT': 0.13,
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -61,7 +67,7 @@ def load_binance(symbol='BTCUSDT', interval='15m'):
 
 
 def compute_features(df):
-    """Compute 26 ret features for VWAP TB labels. Returns (df, feat_names)."""
+    """Compute 26 ret features + 11 new v2 features. Returns (df, feat_names)."""
     df = df.copy()
     df['log_close'] = np.log(df['close'])
     df['log_vol'] = np.log1p(df['volume'])
@@ -72,8 +78,44 @@ def compute_features(df):
         df[f'abs_ret_{h}'] = df[f'ret_{h}'].abs()
     for w in [16,32,64,96]:
         df[f'ret_vol_corr_{w}'] = df['ret_1'].rolling(w).corr(df['log_vol']).fillna(0)
+
+    # -- New v2 features --
+    hl = (df['high'] - df['low']).clip(lower=1e-12)
+    rng = hl / df['close'].clip(lower=1e-12)
+    pos = (df['close'] - df['low']) / hl
+    bfrac = df['taker_buy_vol'] / df['volume'].clip(lower=1e-12)
+    for w in [16, 48, 96]:
+        df[f'hl_range_{w}'] = rng.rolling(w).mean().fillna(0)
+        df[f'close_pos_{w}'] = pos.rolling(w).mean().fillna(0.5)
+        df[f'buy_frac_{w}'] = bfrac.rolling(w).mean().fillna(0.5)
+    # Rolling skewness of ret_1
+    def roll_skew(series, w):
+        arr = series.to_numpy(np.float64)
+        out = np.full(len(arr), np.nan, np.float64)
+        from numpy.lib.stride_tricks import sliding_window_view
+        if len(arr) >= w:
+            sw = sliding_window_view(arr, w)
+            m = sw.mean(axis=1)
+            s = sw.std(axis=1, ddof=0).clip(1e-12)
+            sk = np.mean((sw - m[:, None])**3, axis=1) / s**3
+            out[w-1:] = sk
+        return pd.Series(out, index=series.index).fillna(0)
+    df['vol_skew_48'] = roll_skew(df['ret_1'], 48)
+    df['vol_skew_96'] = roll_skew(df['ret_1'], 96)
+    # Vol ratio: volatility term structure
+    ret_arr = df['ret_1'].to_numpy(np.float64)
+    vol_16 = pd.Series([np.std(ret_arr[max(0,i-16):i]) for i in range(len(ret_arr))])
+    vol_96 = pd.Series([np.std(ret_arr[max(0,i-96):i]) for i in range(len(ret_arr))])
+    df['vol_ratio_16_96'] = (vol_16 / vol_96.clip(lower=1e-12)).fillna(1.0)
+
     df = df.loc[:, ~df.columns.duplicated()]
-    feat_names = [c for c in df.columns if c.startswith('ret_') or c.startswith('abs_ret_') or c.startswith('ret_vol_corr_')]
+    feat_names = [c for c in df.columns if (
+        c.startswith('ret_') or c.startswith('abs_ret_')
+        or c.startswith('ret_vol_corr_')
+        or c.startswith('hl_range_') or c.startswith('close_pos_')
+        or c.startswith('buy_frac_') or c.startswith('vol_skew_')
+        or c.startswith('vol_ratio_')
+    )]
     return df, feat_names
 
 

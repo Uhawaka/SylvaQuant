@@ -1,141 +1,96 @@
-# SylvaQuant — RL Dynamic Allocation Architecture
+# SylvaQuant — RL Dynamic Weight Allocation (Experiment)
 
-## 核心思路
+## Overview
 
-用 Flow Matching 学 (market_latent + PnL) 的联合演化，生成合成轨迹训练 RL 做动态仓位配置。
+This sub-project explores **reinforcement learning for portfolio weight allocation** on a 9-coin cryptocurrency portfolio (15m bars). The approach uses:
 
-## 架构总览
+1. **AE** (Autoencoder): Compress 558 features (62×9 coins) → 16-dim market latent state
+2. **CFM** (Conditional Flow Matching): Generate synthetic (latent, return) pairs matching the real distribution
+3. **GRPO** (Group Relative Policy Optimization): Train a policy in a synthetic "dream world" to output optimal portfolio weights
 
-```
-  ┌──────────────────────────────────────────────────┐
-  │               DATA PIPELINE (offline)            │
-  │                                                  │
-  │  62 features → RF → 9 signals → per-coin TH     │
-  │                               ↓                  │
-  │                     per-bar PnL (9 coins)        │
-  │                               ↓                  │
-  │                    Portfolio PnL (avg)           │
-  └──────────────────────────────────────────────────┘
-                          ↓
-  ┌──────────────────────────────────────────────────┐
-  │           STAGE 1: MARKET LATENT (AE)            │
-  │                                                  │
-  │  62 features × 9 coins → AE → 16-dim latent     │
-  │  (per time step, unified market representation)  │
-  │  Independent of #coins, independent of #features │
-  └──────────────────────────────────────────────────┘
-                          ↓
-  ┌──────────────────────────────────────────────────┐
-  │       STAGE 2: FLOW MATCHING (dynamics)          │
-  │                                                  │
-  │  Train flow on: (latent_t, PnL_t) → next state   │
-  │  Loss: conditional flow matching (vector field)  │
-  │  Output: flow model p(s_{t+1} | s_t)             │
-  └──────────────────────────────────────────────────┘
-                          ↓
-  ┌──────────────────────────────────────────────────┐
-  │        STAGE 3: SYNTHETIC TRAJECTORIES           │
-  │                                                  │
-  │  Sample initial state from real data             │
-  │  Roll forward with flow model (Euler integration)│
-  │  Generate 100K+ episodes × 200 steps             │
-  │  ↓                                               │
-  │  (latent, PnL) for each step — NO real data I/O  │
-  └──────────────────────────────────────────────────┘
-                          ↓
-  ┌──────────────────────────────────────────────────┐
-  │       STAGE 4: RL POLICY (dynamic weights)       │
-  │                                                  │
-  │  State:  [latent(16) + RF signals(9) + cur_w(9)] │
-  │  Action: next_weights(9)  (softmax, ∈[0,1])      │
-  │  Reward: portfolio_return(t)                     │
-  │  Algo:   PPO (continuous action space)           │
-  │  Train:  on synthetic trajectories only          │
-  │  Time:   ~5 min (100K steps, no data loading)    │
-  └──────────────────────────────────────────────────┘
-```
-
-## 组件说明
-
-### Stage 1: Market Latent Encoder
-
-**输入:** 62 features × 9 coins = 558 raw dims  
-**输出:** 16-dim latent (unified market state)
+## Pipeline
 
 ```
-558 → 256 → 128 → 64 → 16(z) → 64 → 128 → 256 → 558
-             Dumbbell AE, SiLU, Dropout=0.1
-             Loss = MSE(recon, input)
+Raw Features (558) → AE → Latent (16) 
+                                ↓
+                    CFM → Synthetic (latent, return) pairs
+                                ↓
+                    GRPO → Policy → weights ∈ [-1, 1]^9
+                                ↓
+                    Backtest (VWAP fill, offset=2, fee=0.04%)
 ```
 
-已有 `latent_mlp_ae.pq` 是1h 8-dim版本。
-新版用15m数据 + 62 features × 9 coins，对齐RF信号。
+## Files
 
-每个时间步输出一个16维向量，表示整个市场状态。
-与资产数、特征数无关 —— 截面任意多币都压缩到16维。
+| File | Purpose |
+|------|---------|
+| `src/train_market_latent.py` | Train AE: 558→16 market latent |
+| `src/train_rl_policy.py` | GRPO training on synthetic CFM data |
+| `src/backtest_rl.py` | Time-series backtest with fees |
+| `RL_ARCH.md` | This document |
+| `data/market_latent.npy` | 189K × 16 latents |
+| `data/market_latent_ae.pt` | Trained AE model |
+| `data/synthetic_cfm.npz` | 200K synthetic (latent, return) pairs |
+| `data/cfm_joint.pt` | Trained CFM model |
+| `data/rl_policy.pt` | Trained policy checkpoint |
 
-### Stage 2: Flow Matching
+## Training
 
-**输入:** s_t = (latent_16, PnL_1) = 17维状态向量  
-**目标:** 学习 s_t → s_{t+1} 的连续时间向量场
-
+### Stage 1: Market Latent (AE)
+```bash
+python src/train_market_latent.py
 ```
-Flow Model: MLP(17 → 128 → 128 → 17) with SiLU
-Training: Conditional Flow Matching loss
-          v_θ(s_t, t) = predicted direction
-          L = ||v_θ(s_t, t) - (s_{t+1} - s_t)||²
+AE compresses 558-dim feature space → 16-dim latent. Dumbbell architecture (SiLU, ResBlock, dropout=0.1). 20 epochs.
+
+### Stage 2: CFM (Synthetic Data Generation)
+```bash
+python src/train_cfm.py
 ```
+Conditional Flow Matching (Lipman et al., 2022) on joint [latent(16), return(9)] distribution. Time-conditioned MLP with sinusoidal embedding. Generates 200K synthetic pairs.
 
-训练数据：~39K 1h时间步（4.5年），每个样本是 (latent_t, PnL_t, latent_{t+1}, PnL_{t+1})
-
-### Stage 3: 合成轨迹生成
-
-从真实数据采初始状态，用Flow Model滚动生成新轨迹：
-
+### Stage 3: GRPO (Policy Training)
+```bash
+python src/train_rl_policy.py
 ```
-s_0 = sample from real data
-for step in 1..200:
-    v = flow_model(s_{step-1})
-    s_step = s_{step-1} + v * dt
+Policy: tanh-Gaussian → weights ∈ [-1, 1]. 
+- K=32 samples per state (group competition)
+- Turnover-based fee in reward
+- Group-normalized advantage (GRPO)
+- Entropy + KL regularization
+
+### Backtest
+```bash
+python src/backtest_rl.py
 ```
+VWAP fill at offset=2. Fee 0.04% on turnover.
 
-生成100条×200步 = 20K样本，可重复采样。
-**关键:** 生成过程纯CPU/GPU运算，无磁盘I/O，数秒钟完成。
+## Results
 
-### Stage 4: RL Agent
+| Metric | Value |
+|--------|-------|
+| Pre-fee SR | 3-5 (config dependent) |
+| After-fee SR | ~0 (fee eats all alpha) |
+| Avg turnover | 2.4 (raw) |
+| Avg Σ|weight| | 8.6 |
 
-**状态空间:** (26维)
-- market_latent (16) — 全局市场状态
-- RF signals (9) — 各币当前信号强度
-- current_weights (9) — 当前仓位占比
+## Key Findings
 
-**动作空间:** (9维)
-- 下一期各币权重 w_i ∈ [0, 1], Σw_i = 1
+1. **CFM works well**: Generates realistic (latent, return) pairs from noise. Synthetic return std ≈ 0.0052 (target 0.0071, ratio 73%).
 
-**奖励:**
-- 每步: r_t = Σ(w_i * coin_return_i) — 加权组合收益
-- 可加项: r_t - λ * |w_t - w_{t-1}| (换仓惩罚)
+2. **GRPO + synthetic data works**: Policy trained purely on synthetic data transfers to real data (no leakage).
 
-**训练:**
-- PPO, batch=256, lr=3e-4
-- 100K steps on synthetic data
-- ~5分钟跑完
+3. **Fee is the killer**: At 0.04% per trade, turnover of 2.4/bar consumes ~0.1% of capital per bar. The signal (pre-fee SR≈4) isn't strong enough to overcome this friction.
 
-## 与当前系统对比
+4. **L1 normalization hurts**: Σ|w| fixed at 1 reduces returns 8.6x, but turnover fee only drops 0.5x. Net becomes even worse.
 
-| 维度 | 当前(等权) | RL动态配置 |
-|:----|:----------:|:----------:|
-| 权重 | 1/9 each | 学出来的，可大可小 |
-| 对BTC弱势期 | 硬扛 | 自动降低权重 |
-| 对altcoin强势 | 均分 | 自动放大 |
-| 换仓 | 无 | 有换仓成本，RL自己权衡 |
-| 训练时间 | 0 | ~5分钟(flow) + ~5分钟(RL) |
+## Open Questions
 
-## 实施步骤
+- Can a lower fee environment (0.01% maker) make this viable?
+- Would higher-timeframe returns (1h/4h) with proportionally lower turnover help?
+- Could threshold-based trading (only when signal confidence > 0.5) reduce turnover enough?
 
-```
-Week 1: AE market latent (复用现有架构, 对齐15m)
-Week 2: Flow matching training & validation
-Week 3: RL policy on synthetic data
-Week 4: Integration → CPCV evaluation → compare vs equal weight
-```
+## References
+
+- Lipman et al., "Flow Matching for Generative Modeling" (2022)
+- DeepSeekMath, "GRPO: Group Relative Policy Optimization" (2024)
+- Haarnoja et al., "Soft Actor-Critic" (2018)

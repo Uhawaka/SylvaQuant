@@ -1,0 +1,8 @@
+output/
+model/*.pkl
+data/
+*.zip
+__pycache__/
+.DS_Store
+*.pyc
+*.egg-info/

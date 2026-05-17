@@ -55,7 +55,7 @@ TH_MAP = {
 # ═══════════════════════════════════════════════════════════════
 
 def load_binance(symbol='BTCUSDT', interval='15m'):
-    """Load Binance data from monthly ZIP archives."""
+    """Load Binance data from monthly ZIP archives. Handles μs timestamps and CSV headers."""
     all_dfs = []
     for y in range(2020, 2027):
         for m in range(1, 13):
@@ -64,7 +64,19 @@ def load_binance(symbol='BTCUSDT', interval='15m'):
             with zipfile.ZipFile(f) as z:
                 csv = f'{symbol}-{interval}-{y}-{m:02d}.csv'
                 if csv in z.namelist():
-                    all_dfs.append(pd.read_csv(z.open(csv), header=None))
+                    raw = z.read(csv).decode('utf-8')
+                    first_line = raw.split('\n')[0].strip()
+                    has_header = first_line.lower().startswith(('open_time', 'timestamp', 'opentime'))
+                    from io import StringIO
+                    df = pd.read_csv(StringIO(raw), header=0 if has_header else None)
+                    # Normalize: strip column names regardless of format
+                    df.columns = range(len(df.columns))
+                    # Normalize μs timestamps to ms
+                    ts_col = df.columns[0]  # first column
+                    if df[ts_col].dtype in (np.int64, np.float64):
+                        if df[ts_col].max() > 1e15:
+                            df[ts_col] = df[ts_col] / 1000
+                    all_dfs.append(df)
     if not all_dfs:
         raise FileNotFoundError(f'No data for {symbol}')
     df = pd.concat(all_dfs, ignore_index=True)

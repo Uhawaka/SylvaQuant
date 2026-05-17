@@ -13,7 +13,7 @@ Multi-coin portfolio strategy using Random Forest + Triple Barrier labels on 15m
 | Max drawdown | -19.1% |
 | Annual return | +492% |
 
-![Equity curve](output/equity_curve.png)
+![Equity curve](equity_curve.png)
 
 ## How it works
 

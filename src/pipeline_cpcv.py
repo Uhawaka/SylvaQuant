@@ -25,6 +25,19 @@ FEATS = [
     'buy_frac_16','buy_frac_48','buy_frac_96',
     'vol_skew_48','vol_skew_96',
     'vol_ratio_16_96',
+    # === New features v3 (trend/vol/volume dynamics) ===
+    'consec_up_8','consec_up_24',
+    'consec_vol_16','consec_vol_48',
+    'ret_ma_dist_48','ret_ma_dist_96',
+    'ret_range_pos_48','ret_range_pos_96',
+    'vol_delta_16','vol_delta_48',
+    'vol_max_16','vol_max_48',
+    'vol_surge_16','vol_surge_48',
+    'qv_surge_16','qv_surge_48',
+    'up_wick_16','up_wick_48',
+    'dn_wick_16','dn_wick_48',
+    'ret_sharpe_48','ret_sharpe_96',
+    'ret_acf_16','ret_acf_48',
 ]
 MB = 4
 RF_N_EST = 40
@@ -33,8 +46,8 @@ RF_LEAF = 50
 
 # Per-coin optimal thresholds (optimized via CPCV OOS signals)
 TH_MAP = {
-    'BTCUSDT': 0.12, 'ETHUSDT': 0.11, 'SOLUSDT': 0.13, 'BNBUSDT': 0.15,
-    'ADAUSDT': 0.11, 'XRPUSDT': 0.12, 'DOGEUSDT': 0.17, 'DOTUSDT': 0.14, 'AVAXUSDT': 0.13,
+    'BTCUSDT': 0.13, 'ETHUSDT': 0.10, 'SOLUSDT': 0.11, 'BNBUSDT': 0.19,
+    'ADAUSDT': 0.11, 'XRPUSDT': 0.13, 'DOGEUSDT': 0.18, 'DOTUSDT': 0.13, 'AVAXUSDT': 0.11,
 }
 
 # ═══════════════════════════════════════════════════════════════
@@ -109,12 +122,97 @@ def compute_features(df):
     df['vol_ratio_16_96'] = (vol_16 / vol_96.clip(lower=1e-12)).fillna(1.0)
 
     df = df.loc[:, ~df.columns.duplicated()]
+    # Rolling stats helper
+    def roll_mean(arr, w):
+        return pd.Series(arr).rolling(w, min_periods=1).mean().to_numpy()
+    def roll_std(arr, w):
+        return pd.Series(arr).rolling(w, min_periods=1).std(ddof=0).to_numpy()
+    def roll_max(arr, w):
+        return pd.Series(arr).rolling(w, min_periods=1).max().to_numpy()
+
+    # -- v3: trend quality --
+    close = df['close'].to_numpy(np.float64)
+    ret1 = df['ret_1'].to_numpy(np.float64)
+    abs_ret1 = df['abs_ret_1'].to_numpy(np.float64)
+    for w in [8, 24]:
+        # Consecutive up count (streak of positive returns)
+        ups = (ret1 > 0).astype(float)
+        consec = np.zeros(len(ret1))
+        cnt = 0
+        for i in range(len(ret1)):
+            cnt = cnt + 1 if ups[i] > 0 else 0
+            consec[i] = cnt
+        df[f'consec_up_{w}'] = pd.Series(consec).rolling(w, min_periods=1).mean().fillna(0)
+
+    for w in [16, 48]:
+        # Vol compression: fraction of bars with below-average vol
+        abs_sma = roll_mean(abs_ret1, w).clip(1e-12)
+        df[f'consec_vol_{w}'] = pd.Series((abs_ret1 < abs_sma).astype(float)).rolling(
+            w, min_periods=1).mean().fillna(0.5)
+
+    # -- v3: price structure --
+    for w in [48, 96]:
+        sma = roll_mean(close, w).clip(1e-12)
+        df[f'ret_ma_dist_{w}'] = (close / sma - 1).clip(-0.2, 0.2)
+        cmin = pd.Series(close).rolling(w, min_periods=1).min().to_numpy()
+        cmax = pd.Series(close).rolling(w, min_periods=1).max().to_numpy()
+        rng_pos = cmax - cmin
+        df[f'ret_range_pos_{w}'] = np.where(
+            rng_pos > 1e-8, (close - cmin) / rng_pos, 0.5)
+
+    # -- v3: volatility dynamics --
+    for w in [16, 48]:
+        vol_now = roll_mean(abs_ret1, w)
+        vol_prev = np.concatenate([[0], vol_now[:-1]])
+        df[f'vol_delta_{w}'] = (vol_now - vol_prev).clip(-0.01, 0.01) * 100  # in %
+        df[f'vol_max_{w}'] = roll_max(abs_ret1, w) * 100  # in %
+
+    # -- v3: volume dynamics --
+    vol_arr = df['volume'].to_numpy(np.float64)
+    qv_arr = df['quote_vol'].to_numpy(np.float64)
+    for w in [16, 48]:
+        vol_sma = roll_mean(vol_arr, w).clip(1e-12)
+        qv_sma = roll_mean(qv_arr, w).clip(1e-12)
+        df[f'vol_surge_{w}'] = (vol_arr / vol_sma - 1).clip(-0.8, 3)
+        df[f'qv_surge_{w}'] = (qv_arr / qv_sma - 1).clip(-0.8, 3)
+
+    # -- v3: wick structure --
+    hi = df['high'].to_numpy(np.float64)
+    lo = df['low'].to_numpy(np.float64)
+    op = df['open'].to_numpy(np.float64)
+    hl = (hi - lo).clip(1e-12)
+    up_wick = (hi - np.maximum(op, close)) / hl
+    dn_wick = (np.minimum(op, close) - lo) / hl
+    for w in [16, 48]:
+        df[f'up_wick_{w}'] = roll_mean(up_wick, w)
+        df[f'dn_wick_{w}'] = roll_mean(dn_wick, w)
+
+    # -- v3: risk-adjusted return --
+    for w in [48, 96]:
+        m = roll_mean(ret1, w)
+        s = roll_std(ret1, w).clip(1e-12)
+        df[f'ret_sharpe_{w}'] = (m / s).clip(-3, 3)
+
+    # -- v3: return autocorrelation --
+    for w in [16, 48]:
+        lag1 = np.concatenate([[0], ret1[:-1]])
+        num = pd.Series(ret1 * lag1).rolling(w, min_periods=1).mean().to_numpy()
+        den = pd.Series(ret1**2).rolling(w, min_periods=1).mean().clip(1e-12).to_numpy()
+        df[f'ret_acf_{w}'] = (num / den).clip(-0.5, 0.5)
+
+    df = df.loc[:, ~df.columns.duplicated()]
     feat_names = [c for c in df.columns if (
         c.startswith('ret_') or c.startswith('abs_ret_')
         or c.startswith('ret_vol_corr_')
         or c.startswith('hl_range_') or c.startswith('close_pos_')
         or c.startswith('buy_frac_') or c.startswith('vol_skew_')
         or c.startswith('vol_ratio_')
+        or c.startswith('consec_up_') or c.startswith('consec_vol_')
+        or c.startswith('ret_ma_dist_') or c.startswith('ret_range_pos_')
+        or c.startswith('vol_delta_') or c.startswith('vol_max_')
+        or c.startswith('vol_surge_') or c.startswith('qv_surge_')
+        or c.startswith('up_wick_') or c.startswith('dn_wick_')
+        or c.startswith('ret_sharpe_') or c.startswith('ret_acf_')
     )]
     return df, feat_names
 

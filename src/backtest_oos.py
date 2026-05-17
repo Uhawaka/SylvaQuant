@@ -8,7 +8,7 @@ warnings.filterwarnings('ignore')
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'src'))
-from pipeline_cpcv import backtest_pnl, SYMBOLS, OUTPUT_DIR, FEATS
+from pipeline_cpcv import backtest_pnl, SYMBOLS, OUTPUT_DIR, FEATS, TH_MAP
 
 TH = float(os.getenv('TH', '0.10'))
 FEE = float(os.getenv('FEE', '0.0004'))
@@ -17,10 +17,6 @@ WEIGHT_SCHEME = os.getenv('WEIGHT_SCHEME', 'equal').lower()
 TH_PER_COIN = os.getenv('TH_PER_COIN', '0') in ('1', 'true', 'True')
 PROB_MODE = os.getenv('PROB_MODE', '0') in ('1', 'true', 'True')
 PTH = float(os.getenv('PTH', '0.55'))
-TH_MAP = {
-    'BTCUSDT': 0.25, 'ETHUSDT': 0.25, 'SOLUSDT': 0.25, 'BNBUSDT': 0.25,
-    'ADAUSDT': 0.30, 'XRPUSDT': 0.30, 'DOGEUSDT': 0.30, 'DOTUSDT': 0.30, 'AVAXUSDT': 0.30,
-}
 
 
 def _pnl_from_probs(pl, ps, vwaps, pth, fee, ema_alpha=None):

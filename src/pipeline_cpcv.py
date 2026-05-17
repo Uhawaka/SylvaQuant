@@ -25,6 +25,12 @@ RF_N_EST = 40
 RF_DEPTH = 8
 RF_LEAF = 50
 
+# Per-coin optimal thresholds (optimized via CPCV OOS signals)
+TH_MAP = {
+    'BTCUSDT': 0.11, 'ETHUSDT': 0.11, 'SOLUSDT': 0.12, 'BNBUSDT': 0.10,
+    'ADAUSDT': 0.11, 'XRPUSDT': 0.10, 'DOGEUSDT': 0.17, 'DOTUSDT': 0.11, 'AVAXUSDT': 0.06,
+}
+
 # ═══════════════════════════════════════════════════════════════
 # Data Loading
 # ═══════════════════════════════════════════════════════════════

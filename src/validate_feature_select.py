@@ -9,7 +9,7 @@ import numpy as np, pandas as pd
 warnings.filterwarnings('ignore')
 sys.path.insert(0, 'src')
 from pipeline_cpcv import (load_binance, compute_features, cpcv_eval,
-    SYMBOLS, FEATS, MB, OUTPUT_DIR)
+    SYMBOLS, FEATS, MB, OUTPUT_DIR, backtest_pnl, TH_MAP)
 
 # ── Feature subsets ──
 SHORT_RET  = ['ret_1','ret_2','ret_4','ret_8']
@@ -105,7 +105,6 @@ def run_full_cpcv(feats, label):
 
 def backtest_portfolio(results, label):
     """Portfolio backtest from CPCV OOS predictions (same as backtest_oos.py)."""
-    from pipeline_cpcv import backtest_pnl
 
     # Organize by date
     all_sig = {}; all_dates = {}; all_vwap = {}
@@ -135,16 +134,11 @@ def backtest_portfolio(results, label):
                 vwap_m[idx, j] = all_vwap[sym][k]
 
     # Backtest each coin
-    th_map = {
-        'BTCUSDT': 0.25, 'ETHUSDT': 0.25, 'SOLUSDT': 0.25, 'BNBUSDT': 0.25,
-        'ADAUSDT': 0.30, 'XRPUSDT': 0.30, 'DOGEUSDT': 0.30, 'DOTUSDT': 0.30, 'AVAXUSDT': 0.30,
-    }
-
     pnl_m = np.zeros((N, len(SYMBOLS)))
     pos_m = np.zeros((N, len(SYMBOLS)))
     for j, sym in enumerate(SYMBOLS):
         if sym not in all_sig: continue
-        th_i = th_map.get(sym, TH)
+        th_i = TH_MAP.get(sym, TH)
         pnl_m[:, j], pos_m[:, j], _ = backtest_pnl(
             sig_m[:, j], vwap_m[:, j], th_i, FEE, EMA_ALPHA)
 

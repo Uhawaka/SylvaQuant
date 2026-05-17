@@ -8,11 +8,11 @@ Multi-coin portfolio strategy using Random Forest + Triple Barrier labels on 15m
 
 | Metric | Value |
 |--------|:-----:|
-| Final equity ($10K →) | **$231K** (+2,210%) |
-| Sharpe ratio (daily) | **5.32** |
-| Max drawdown | -19.1% |
-| Annual return | +492% |
-
+| Final equity ($10K →) | **$313K** (+3,034%) |
+| Sharpe ratio (daily) | **4.39** |
+| Max drawdown | -20.7% |
+| Period | 6.3 years (2020–2026) |
+| Annual return | +553% |
 ![Equity curve](equity_curve.png)
 
 ## How it works

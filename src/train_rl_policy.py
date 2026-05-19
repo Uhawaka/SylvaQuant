@@ -1,5 +1,5 @@
 #!/usr/bin/env python3 -u
-"""GRPO — synthetic dream world training."""
+"""GRPO — turnover fee, parallel segments (fast)."""
 import sys,warnings,time
 import numpy as np
 warnings.filterwarnings('ignore')
@@ -9,7 +9,7 @@ from pipeline_cpcv import SYMBOLS,OUTPUT_DIR
 
 SEED=42;torch.manual_seed(SEED);np.random.seed(SEED)
 DEV='mps'if torch.backends.mps.is_available()else'cpu'
-DZ,NC,H=16,9,128;LR=3e-4;B=4000;L=5;K=32;N_STEPS=5000
+DZ,NC,H=16,9,128;LR=3e-4;B=4000;L=5;K=32;N_STEPS=5000;FEE=0.0004
 
 class Policy(nn.Module):
     def __init__(self):
@@ -60,7 +60,7 @@ def ev(p):
     return sr.item(),pr.mean().item(),w.mean(0).cpu().numpy(),w.abs().sum(1).cpu().mean().item(),to
 
 pi=Policy().to(DEV);opt=torch.optim.AdamW(pi.parameters(),lr=LR)
-print(f'═══ GRPO (no fee in training, B={B}, L={L}, K={K}) ═══')
+print(f'═══ GRPO + fee-on-turnover (B={B}, L={L}, K={K}, FEE={FEE}) ═══\n')
 
 t0=time.time()
 for step in range(N_STEPS):
@@ -68,7 +68,7 @@ for step in range(N_STEPS):
     s_seg=S_tr[perm];r_seg=R_tr[perm]  # (B, L, DZ), (B, L, NC)
 
     # Process all L steps in parallel segments (L-step loop, batched across segments)
-    total_loss=0
+    w_prev=None;total_loss=0
     for l in range(L):
         s_t=s_seg[:,l]  # (B, DZ)
         r_t=r_seg[:,l]  # (B, NC)
@@ -84,9 +84,14 @@ for step in range(N_STEPS):
         lp=lp-(2*(np.log(2)-wk-F.softplus(-2*wk)))
         lp=lp.sum(-1).view(B,K);wk=wk.view(B,K,NC)
 
-        # Reward = portfolio_return (no fee — see backtest for cost handling)
+        # Turnover fee
+        if l==0: fee=FEE*wk.abs().sum(-1)          # entry cost
+        else: fee=FEE*(wk-w_prev).abs().sum(-1)    # turnover
+        w_prev=wk.detach()
+
+        # Reward = portfolio_return - fee
         rk=r_t.unsqueeze(1).expand(-1,K,-1)
-        rew=(wk*rk).sum(-1)
+        rew=(wk*rk).sum(-1)-fee
 
         # GRPO: group norm within each (segment, step) group
         ad=(rew-rew.mean(1,keepdim=True))/(rew.std(1,keepdim=True)+1e-8)
@@ -107,6 +112,6 @@ for step in range(N_STEPS):
 
 sr,pn,wm,sw,to=ev(pi)
 torch.save({'model_state':pi.state_dict(),'n_coins':NC,'latent_dim':DZ,
-            'latent_mean':rlm,'latent_std':rls},'data/rl_policy.pt')
+            'latent_mean':rlm,'latent_std':rls,'fee':FEE,'to':to},'data/rl_policy.pt')
 print(f'\nDone: {time.time()-t0:.0f}s')
 print(f'═══ Final: SR={sr:.2f}  PnL={pn:.6f}  Σ|w|={sw:.2f}  TO={to:.4f}')

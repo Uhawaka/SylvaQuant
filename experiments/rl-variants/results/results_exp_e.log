@@ -1,0 +1,30 @@
+═══ Dream World GRPO — CFM Synthetic → Real Data ═══
+Device: mps
+Synthetic data: 200,000 pairs
+Return vol scaling: 0.9500
+Synthetic ret std after scaling: 0.004634
+Real ret std: 0.004634
+Segments: 40000 × L=5 = 200000 total steps
+
+Training GRPO on synthetic data...
+  Step     1  Val SR=0.20  TO=0.1303  σ=1.000
+  Step  1000  Val SR=2.73  TO=3.7944  σ=0.721
+  Step  2000  Val SR=2.91  TO=4.0126  σ=0.651
+  Step  3000  Val SR=3.04  TO=4.0911  σ=0.645
+  Step  4000  Val SR=3.12  TO=4.1541  σ=0.645
+  Step  5000  Val SR=3.09  TO=4.1481  σ=0.645
+
+[Dream GRPO] Time=142s
+  Best Val: 3.12  Test SR: 2.12  Test TO: 4.0485
+
+============================================================
+COMPARISON: Dream World vs Real-Data Training
+============================================================
+Method                          Test SR       TO
+------------------------------------------------
+Dream GRPO (CFM synth)             2.12   4.0485
+Real GRPO (H=16)                   2.84   4.5185
+Real Diff Sharpe (H=16)            2.64   0.3327
+
+✅ Saved: data/rl_policy_dream.pt
+DONE: 0

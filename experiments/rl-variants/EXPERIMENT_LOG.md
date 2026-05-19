@@ -5,9 +5,9 @@
 
 ---
 
-## ✅ v5 — Gate (当前最佳)
+## ✅ v5 — GRPO Gate (🏆 最终冠军)
 **文件**: `experiments/rl-variants/exp_r_grpo_gate.py`  
-**Commit**: 未提交 (2026-05-18)
+**Commit**: eff8032 (2026-05-18)
 
 ### 核心设计
 - Policy 双头输出: **direction** (tanh, [-1,1]) × **gate** (sigmoid, [0,1])
@@ -117,3 +117,22 @@
 3. **Gate 机制**: direction × gate = 自然稀疏, 入场费自动约束
 4. **Synthetic → Real**: 合成数据训练, 实盘验证, 信号迁移能力强
 5. **Net SR > Gross SR**: 低 TO 比高 Gross SR 更重要 (fee 吃掉一切)
+
+---
+
+## 🏆 最终结论
+
+**冠军方案: GRPO Gate**
+- 文件: `exp_r_grpo_gate.py`
+- Net SR=+1.19, TO=0.06, Σ|w|=0.11
+
+**核心机制**: direction(tanh) × gate(sigmoid, init bias=-5) + 入场费 FEE×|w|
+→ gate≈0 时无仓位无成本 → 只在确信时开仓 → 自然稀疏
+
+**成功因素**:
+1. 合成 CFM 数据训练（强信号, 极端事件丰富）
+2. Gate 初始关闭（bias=-5），需学习打开
+3. 入场费结构：开仓先交 0.04%，迫使策略只在高确信时出手
+4. 实盘 infer 验证信号迁移
+
+**实验清理**: 所有中间版本移入 `archive/`，仅保留冠军版。

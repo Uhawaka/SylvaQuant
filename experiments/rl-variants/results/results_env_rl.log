@@ -1,0 +1,45 @@
+═══ RL Environment — Gym + Diffable VecEnv ═══
+
+[Gym Env Test]
+  obs.shape=(25,)  action.shape=(9,)
+  episode return=-0.026391
+
+[TorchVecEnv Test]
+  returns: ['-0.0012', '-0.0009', '0.0034', '-0.0007', '0.0062']
+
+[θ=0.10 B=256 L=32 10K steps]
+
+============================================================
+TRAIN  B=256  L=32  STEPS=10000
+============================================================
+  Step     0  Val SR=-0.41  loss=+0.0353  wall=1s
+  Step  2500  Val SR=1.77  loss=-0.0229  wall=30s
+  Step  5000  Val SR=1.49  loss=-0.0597  wall=58s
+  Step  7500  Val SR=1.27  loss=-0.0590  wall=87s
+  Done in 116s
+  Test: SR=0.90  Net SR=0.40  TO=0.1245  Act=42.22%
+
+[θ=0.20 B=256 L=32 10K steps]
+
+============================================================
+TRAIN  B=256  L=32  STEPS=10000
+============================================================
+  Step     0  Val SR=-0.14  loss=-0.0016  wall=1s
+  Step  2500  Val SR=1.88  loss=-0.0453  wall=30s
+  Step  5000  Val SR=1.67  loss=-0.0577  wall=58s
+  Step  7500  Val SR=1.44  loss=-0.0554  wall=87s
+  Done in 116s
+  Test: SR=1.40  Net SR=1.05  TO=0.0774  Act=16.61%
+
+[θ=0.30 B=256 L=32 10K steps]
+
+============================================================
+TRAIN  B=256  L=32  STEPS=10000
+============================================================
+  Step     0  Val SR=1.03  loss=-0.0009  wall=1s
+  Step  2500  Val SR=0.64  loss=-0.0259  wall=30s
+  Step  5000  Val SR=0.77  loss=-0.0660  wall=59s
+  Step  7500  Val SR=0.15  loss=-0.0509  wall=87s
+  Done in 117s
+  Test: SR=1.10  Net SR=0.97  TO=0.0442  Act=40.93%
+DONE: 0

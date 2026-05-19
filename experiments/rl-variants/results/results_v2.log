@@ -1,0 +1,92 @@
+═══ RL Experiment Suite ═══
+Device: mps
+
+Data: 189,669 bars, 9 coins
+Train: 0:132768  Val: 132768:161218  Test: 161218:189669
+EW Train Sharpe: 0.6763
+
+============================================================
+[Exp 2] Differentiable Sharpe (direct optimization, no RL)
+============================================================
+       0 | loss=-0.0271 | SR_batch=2.54
+    1000 | loss=-0.9594 | SR_batch=89.79
+    2000 | loss=-0.9210 | SR_batch=86.20
+  → Best Val: 76.8362
+    3000 | loss=-0.7936 | SR_batch=74.28
+    4000 | loss=-0.9115 | SR_batch=85.31
+    5000 | loss=-1.1582 | SR_batch=108.40
+    6000 | loss=-1.0961 | SR_batch=102.59
+    7000 | loss=-0.8761 | SR_batch=82.00
+    8000 | loss=-0.9910 | SR_batch=92.75
+    9000 | loss=-1.1026 | SR_batch=103.20
+   10000 | loss=-1.0098 | SR_batch=94.51
+   11000 | loss=-0.9016 | SR_batch=84.38
+   12000 | loss=-1.1595 | SR_batch=108.53
+   13000 | loss=-0.8900 | SR_batch=83.30
+   14000 | loss=-0.9310 | SR_batch=87.14
+   15000 | loss=-1.1607 | SR_batch=108.63
+   16000 | loss=-1.3372 | SR_batch=125.15
+   17000 | loss=-0.9783 | SR_batch=91.56
+   18000 | loss=-0.9312 | SR_batch=87.15
+   19000 | loss=-0.8966 | SR_batch=83.92
+   20000 | loss=-1.1009 | SR_batch=103.04
+   21000 | loss=-1.2913 | SR_batch=120.85
+   22000 | loss=-0.9482 | SR_batch=88.75
+   23000 | loss=-1.2740 | SR_batch=119.24
+   24000 | loss=-1.1280 | SR_batch=105.58
+   25000 | loss=-0.9462 | SR_batch=88.56
+   26000 | loss=-1.0668 | SR_batch=99.85
+   27000 | loss=-1.1759 | SR_batch=110.05
+   28000 | loss=-1.1498 | SR_batch=107.62
+   29000 | loss=-1.3588 | SR_batch=127.17
+   30000 | loss=-1.1910 | SR_batch=111.47
+   31000 | loss=-1.1686 | SR_batch=109.38
+   32000 | loss=-1.1592 | SR_batch=108.49
+   33000 | loss=-1.1684 | SR_batch=109.35
+   34000 | loss=-1.0494 | SR_batch=98.22
+   35000 | loss=-1.1943 | SR_batch=111.78
+   36000 | loss=-0.9385 | SR_batch=87.84
+   37000 | loss=-0.9988 | SR_batch=93.48
+   38000 | loss=-1.0590 | SR_batch=99.11
+   39000 | loss=-1.2682 | SR_batch=118.69
+   40000 | loss=-0.9193 | SR_batch=86.04
+   41000 | loss=-1.1295 | SR_batch=105.71
+   42000 | loss=-1.3417 | SR_batch=125.58
+   43000 | loss=-1.2298 | SR_batch=115.10
+   44000 | loss=-0.8740 | SR_batch=81.80
+   45000 | loss=-1.0281 | SR_batch=96.23
+   46000 | loss=-1.0551 | SR_batch=98.75
+   47000 | loss=-1.0848 | SR_batch=101.53
+   48000 | loss=-1.3448 | SR_batch=125.86
+   49000 | loss=-1.1661 | SR_batch=109.14
+
+[Exp 2] Best Val: 76.8362 | Test: 57.5647
+
+⏱ 680s elapsed
+
+============================================================
+[Exp 1] GRPO Direct on Raw Returns (stock-style)
+============================================================
+      0 | loss=-0.0050 | mean_r=0.000062 | adv=-0.0000
+    200 | loss=-0.0427 | mean_r=0.000214 | adv=0.0000
+    400 | loss=-0.0230 | mean_r=0.001495 | adv=0.0000
+    600 | loss=-0.0266 | mean_r=0.000223 | adv=-0.0000
+    800 | loss=-0.0297 | mean_r=0.001052 | adv=0.0000
+   1000 | loss=-0.0150 | mean_r=0.001075 | adv=-0.0000
+  → Best Val: 39.2469
+   1200 | loss=0.0209 | mean_r=0.004688 | adv=-0.0000
+   1400 | loss=-0.0071 | mean_r=0.000988 | adv=0.0000
+   1600 | loss=-0.0118 | mean_r=0.000981 | adv=0.0000
+   1800 | loss=-0.0178 | mean_r=0.001578 | adv=0.0000
+   2000 | loss=-0.0004 | mean_r=0.001830 | adv=0.0000
+  → Best Val: 47.2766
+   2200 | loss=-0.0033 | mean_r=0.002110 | adv=0.0000
+   2400 | loss=-0.0016 | mean_r=0.001108 | adv=-0.0000
+   2600 | loss=-0.0011 | mean_r=0.000902 | adv=0.0000
+   2800 | loss=-0.0014 | mean_r=0.003464 | adv=0.0000
+   3000 | loss=-0.0117 | mean_r=0.001691 | adv=0.0000
+  → Best Val: 51.2739
+   3200 | loss=-0.0111 | mean_r=0.007506 | adv=0.0000
+   3400 | loss=-0.0039 | mean_r=0.004301 | adv=-0.0000
+   3600 | loss=-0.0082 | mean_r=0.002403 | adv=0.0000
+DONE: 143

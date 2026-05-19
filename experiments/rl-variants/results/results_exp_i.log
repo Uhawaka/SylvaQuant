@@ -1,0 +1,38 @@
+═══ Event Policy — w[t-1] in State ═══
+
+============================================================
+[Train] StateAug
+============================================================
+  Step     0  Val SR=-0.50  TO=0.0923  Act=100.00%  |w|=0.121
+  Step  5000  Val SR=1.81  TO=0.0597  Act=100.00%  |w|=0.075
+  Step 10000  Val SR=1.80  TO=0.0546  Act=100.00%  |w|=0.067
+  Step 15000  Val SR=1.66  TO=0.0515  Act=100.00%  |w|=0.066
+  [StateAug] Done in 57s
+  Test: SR=1.05  TO=0.0414  Net SR=-0.01  Act=100.00%  |w|=0.061
+
+============================================================
+[Train] State+SoftThresh
+============================================================
+  Step     0  Val SR=-0.13  TO=0.0622  Act=100.00%  |w|=0.109
+  Step  5000  Val SR=1.19  TO=0.0325  Act=100.00%  |w|=0.031
+  Step 10000  Val SR=1.00  TO=0.0139  Act=100.00%  |w|=0.009
+  Step 15000  Val SR=0.95  TO=0.0095  Act=99.99%  |w|=0.005
+  [State+SoftThresh] Done in 80s
+  Test: SR=0.16  TO=0.0057  Net SR=-0.43  Act=99.95%  |w|=0.003
+
+============================================================
+[Train] EventGate
+============================================================
+  Step     0  Val SR=-0.11  TO=0.0056  Act=100.00%  |w|=0.020
+  Step  5000  Val SR=1.51  TO=0.0816  Act=100.00%  |w|=0.084
+  Step 10000  Val SR=2.12  TO=0.1011  Act=100.00%  |w|=0.114
+  Step 15000  Val SR=2.26  TO=0.1256  Act=100.00%  |w|=0.130
+  [EventGate] Done in 87s
+  Test: SR=1.66  TO=0.1141  Net SR=0.40  Act=100.00%  |w|=0.138
+
+============================================================
+[Analysis] Position Hold Length
+============================================================
+Traceback (most recent call last):
+  File "/Users/alexios/Project/projects_generated/crypto-research/experiments/rl-variants/exp_i_state_event.py", line 227, in <module>
+RuntimeError: Can't call numpy() on Tensor that requires grad. Use tensor.detach().numpy() instead.
